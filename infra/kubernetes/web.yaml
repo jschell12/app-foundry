@@ -1,0 +1,109 @@
+# One Deployment + Service per frontend. The images are built from
+# infra/docker/web.Dockerfile with --build-arg APP=<name>.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marketing
+  namespace: app-foundry
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: marketing
+  template:
+    metadata:
+      labels:
+        app: marketing
+    spec:
+      containers:
+        - name: marketing
+          image: ghcr.io/jschell12/app-foundry-marketing:latest # replace with your registry
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marketing
+  namespace: app-foundry
+spec:
+  selector:
+    app: marketing
+  ports:
+    - port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  namespace: app-foundry
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: ghcr.io/jschell12/app-foundry-dashboard:latest # replace with your registry
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: app-foundry
+spec:
+  selector:
+    app: dashboard
+  ports:
+    - port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin
+  namespace: app-foundry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin
+  template:
+    metadata:
+      labels:
+        app: admin
+    spec:
+      containers:
+        - name: admin
+          image: ghcr.io/jschell12/app-foundry-admin:latest # replace with your registry
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin
+  namespace: app-foundry
+spec:
+  selector:
+    app: admin
+  ports:
+    - port: 80

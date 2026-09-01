@@ -1,0 +1,73 @@
+name: app-foundry
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-app_foundry}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-app_foundry}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app_foundry}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-App Foundry <noreply@example.com>}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3002}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  marketing:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        APP: marketing
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        APP: dashboard
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "3001:80"
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        APP: admin
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "3002:80"
+    depends_on:
+      - api
+
+volumes:
+  db-data:
