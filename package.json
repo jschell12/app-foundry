@@ -1,0 +1,12 @@
+{
+  "name": "app-foundry",
+  "private": true,
+  "packageManager": "pnpm@10.6.5",
+  "scripts": {
+    "dev:marketing": "pnpm --filter @app-foundry/marketing dev",
+    "dev:dashboard": "pnpm --filter @app-foundry/dashboard dev",
+    "dev:admin": "pnpm --filter @app-foundry/admin dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
