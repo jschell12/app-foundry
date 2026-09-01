@@ -83,6 +83,27 @@ The API sends email through [Resend](https://resend.com). Set
 is a no-op that logs instead of failing, so the template runs out of the
 box.
 
+## Analytics
+
+The template ships with first-party page-view analytics — no cookies, no
+third-party scripts. Same pattern as the permitguv and infralift sites,
+adapted to store events in Postgres instead of Workers Analytics Engine.
+
+- **Beacon** — `apps/{marketing,dashboard}/src/lib/analytics.ts`, started
+  from each app's `main.tsx`. Sends `{ p, r, q }` to the API on load and on
+  SPA navigations. The admin app is not instrumented.
+- **Collector** — `POST /a/e` in `api/app/routers/analytics.py`. Drops bot
+  user agents and prefetches, strips same-site referrers, buckets the
+  referrer/utm_source into a channel, and writes one `analytics_events`
+  row. Raw IP and user-agent are only inputs to a salted SHA-256 visitor
+  hash that rotates daily — they are never stored. Always returns 204.
+- **Admin view** — the Analytics tab in `apps/admin` renders 30 days of
+  stat cards, a daily views chart, channels, and top pages from
+  `GET /analytics/summary`.
+
+Set `ANALYTICS_SALT` in `.env` to any random string. Events are stored
+unaggregated; add a rollup table if a site outgrows query-time aggregation.
+
 ## Deploying
 
 ### Kubernetes

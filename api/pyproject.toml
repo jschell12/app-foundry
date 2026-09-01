@@ -29,3 +29,9 @@ include = ["app*"]
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+
+[tool.ruff.lint]
+# B008: Depends(...) in defaults is the standard FastAPI idiom.
+# BLE001/S110: health check and analytics collector intentionally swallow
+# all errors — neither may ever surface a failure to the caller.
+ignore = ["B008", "BLE001", "S110"]
