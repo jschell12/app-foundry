@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     email_from: str = "App Foundry <noreply@example.com>"
 
+    # Salt for the daily-rotating analytics visitor hash. Any random string;
+    # empty still works but weakens the hash against brute-forcing.
+    analytics_salt: str = ""
+
     cors_origins: str = (
         "http://localhost:3000,http://localhost:3001,http://localhost:3002"
     )
