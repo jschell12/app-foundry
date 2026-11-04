@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # deploy.sh <env> <host> <tag> <registry>
 #   env       prod | pr-<n>
-#   host      public hostname Caddy should answer for
+#   host      public hostname Caddy should answer for. For a preview it is a
+#             template containing {slot}, e.g. demo-preview-{slot}.infralift.dev:
+#             the box gives the PR the lowest free slot (1..MAX_PREVIEWS) and
+#             keeps it until teardown. Those names are declared in tofu, so CI
+#             never touches DNS.
 #   tag       image tag to run (the commit SHA)
 #   registry  e.g. ghcr.io/jschell12
 #
@@ -15,6 +19,7 @@
 #
 # Idempotent: the first run for an environment creates its credentials, every
 # run pulls the images, starts them, waits for health, and routes the host.
+# The last line of output is HOST=<the hostname it serves>.
 set -euo pipefail
 
 ENV="$1" HOST="$2" TAG="$3" REGISTRY="$4"
@@ -24,8 +29,6 @@ ENV_DIR="$ROOT/envs/$ENV"
 MAX_PREVIEWS="${MAX_PREVIEWS:-3}"
 
 [[ "$ENV" =~ ^(prod|pr-[0-9]+)$ ]] || { echo "bad env: $ENV" >&2; exit 2; }
-[[ "$HOST" =~ ^[a-z0-9.-]+$ ]] || { echo "bad host: $HOST" >&2; exit 2; }
-
 if [[ "$ENV" == prod ]]; then
   # Production data must land on the Hetzner volume, never the root disk.
   mountpoint -q "$ROOT/data" || { echo "$ROOT/data is not mounted; refusing to start prod" >&2; exit 1; }
@@ -34,14 +37,27 @@ if [[ "$ENV" == prod ]]; then
 else
   PG_DATA=pgdata
   mkdir -p "$ROOT/envs"
-  if [[ ! -d "$ENV_DIR" ]]; then
-    running=$(find "$ROOT/envs" -maxdepth 1 -name 'pr-*' 2>/dev/null | wc -l)
-    if (( running >= MAX_PREVIEWS )); then
-      echo "already running $running previews (max $MAX_PREVIEWS); close a PR first" >&2
-      exit 1
-    fi
+  # Two PRs deploying at once must not take the same slot.
+  exec 9>"$ROOT/envs/.slots.lock"
+  if command -v flock >/dev/null; then flock 9; fi
+  if [[ -f "$ENV_DIR/slot" ]]; then
+    slot=$(cat "$ENV_DIR/slot")
+  else
+    # No slot files yet is the normal first-preview case, not an error.
+    taken=" $(cat "$ROOT"/envs/pr-*/slot 2>/dev/null | tr '\n' ' ' || true) "
+    slot=""
+    for i in $(seq 1 "$MAX_PREVIEWS"); do
+      [[ "$taken" == *" $i "* ]] || { slot=$i; break; }
+    done
+    [[ -n "$slot" ]] || { echo "all $MAX_PREVIEWS preview slots are in use; close a PR first" >&2; exit 1; }
+    mkdir -p "$ENV_DIR"
+    echo "$slot" > "$ENV_DIR/slot"
   fi
+  exec 9>&-
+  HOST=${HOST//\{slot\}/$slot}
 fi
+
+[[ "$HOST" =~ ^[a-z0-9.-]+$ ]] || { echo "bad host: $HOST" >&2; exit 2; }
 
 mkdir -p "$ENV_DIR" "$ROOT/sites" "$ROOT/caddy"
 
@@ -100,7 +116,10 @@ http://$HOST {
 $preview_block		redir /app /app/ 308
 		redir /admin /admin/ 308
 		handle_path /api/* {
-			reverse_proxy $ENV-api:8000
+			reverse_proxy $ENV-api:8000 {
+				# The API reads the first X-Forwarded-For entry as the visitor.
+				header_up X-Forwarded-For {client_ip}
+			}
 		}
 		handle_path /app/* {
 			reverse_proxy $ENV-dashboard:80
@@ -120,3 +139,4 @@ SITEEOF
 docker exec caddy caddy reload --config /etc/caddy/conf/Caddyfile --adapter caddyfile
 docker image prune -f >/dev/null
 echo "deployed $ENV at $TAG to https://$HOST"
+echo "HOST=$HOST"

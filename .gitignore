@@ -33,3 +33,5 @@ terraform.tfvars
 backend.r2.hcl
 tfplan
 plan.log
+r2-backend.tf
+deploy/**/*.log

@@ -11,7 +11,7 @@ variable "zone_name" {
 }
 
 variable "subdomain" {
-  description = "Production host is <subdomain>.<zone>; previews are <subdomain>-pr-<n>.<zone>; SSH is <subdomain>-ssh.<zone>. Single-level names keep every host under Cloudflare's free Universal SSL certificate."
+  description = "Production host is <subdomain>.<zone>; previews are <subdomain>-preview-<slot>.<zone>; SSH is <subdomain>-ssh.<zone>. Single-level names keep every host under Cloudflare's free Universal SSL certificate."
   type        = string
 }
 
@@ -56,7 +56,7 @@ variable "backup_retention_days" {
 }
 
 variable "max_previews" {
-  description = "Concurrent PR previews the box will accept before refusing new ones."
+  description = "Preview slots: one DNS name each, and the most PRs previewed at once."
   type        = number
   default     = 3
 }
@@ -67,16 +67,21 @@ variable "labels" {
   default     = {}
 }
 
-# Minted outside tofu. Cloudflare will not let a token created by another
-# token manage tokens, and an apply token that could mint anything is the
-# most dangerous credential on the account, so these narrow ones are made
-# once and passed in.
-
-variable "preview_dns_token" {
-  description = "Cloudflare token with DNS edit on the zone only; the preview workflow creates and deletes its records."
-  type        = string
-  sensitive   = true
+# cloudflared installed on the box at first boot, checked against the
+# release's published SHA-256 (cloudflared-linux-amd64.deb). Bump together.
+variable "cloudflared_version" {
+  type    = string
+  default = "2026.10.7"
 }
+
+variable "cloudflared_deb_sha256" {
+  type    = string
+  default = "70b1a1e0f46033ffc8d90b406e554044ba6cbf2e4360295ef1163aed31e09393"
+}
+
+# Minted outside tofu, scoped to the backups bucket. Cloudflare will not let
+# a token created by another token manage tokens, and an apply token that
+# could mint anything is the most dangerous credential on the account.
 
 variable "r2_backup_access_key_id" {
   description = "R2 S3 key id (the token id) scoped to the backups bucket."

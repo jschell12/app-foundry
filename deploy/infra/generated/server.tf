@@ -55,6 +55,8 @@ resource "hcloud_server" "box" {
     host_public_key   = trimspace(tls_private_key.host.public_key_openssh)
     volume_device     = hcloud_volume.data.linux_device
     tunnel_token      = data.cloudflare_zero_trust_tunnel_cloudflared_token.box.token
+    cloudflared_url   = "https://github.com/cloudflare/cloudflared/releases/download/${var.cloudflared_version}/cloudflared-linux-amd64.deb"
+    cloudflared_sha   = var.cloudflared_deb_sha256
   })
 
   # cloud-init only runs on first boot, so a changed template would mean a

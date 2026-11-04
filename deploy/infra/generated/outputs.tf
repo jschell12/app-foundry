@@ -12,6 +12,10 @@ output "server_ipv4" {
   value = hcloud_server.box.ipv4_address
 }
 
+output "preview_hosts" {
+  value = local.preview_hosts
+}
+
 output "tunnel_id" {
   value = cloudflare_zero_trust_tunnel_cloudflared.box.id
 }

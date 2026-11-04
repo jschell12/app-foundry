@@ -7,8 +7,10 @@
 #   tofu init -migrate-state -backend-config=../infra/backend.r2.hcl \
 #     -backend-config=key=bootstrap/terraform.tfstate
 #
-# Commit r2-backend.tf afterwards so the next run reads state from R2. Its
-# state holds no secrets, so it is not encrypted.
+# r2-backend.tf stays uncommitted (it is git-ignored) so a fresh clone can
+# still run the first, local step. To change the bootstrap later, copy it in
+# again and init with the same two -backend-config flags. Its state holds no
+# secrets, so it is not encrypted.
 
 terraform {
   required_version = ">= 1.6"

@@ -9,7 +9,8 @@ REPO=$(git rev-parse --show-toplevel)
 WORK=$(mktemp -d)
 PORT="${AF_HTTP_PORT:-8088}"
 ENV=pr-0
-HOST=preview.localhost
+HOST_TEMPLATE="preview-{slot}.localhost"
+HOST=preview-1.localhost
 TAG=local
 REG=localhost/af-test
 
@@ -40,9 +41,11 @@ BIN="$WORK/code/$ENV/bin"
 export AF_ROOT="$WORK" AF_HTTP_PORT="$PORT" AF_SKIP_PULL=1
 
 echo "== deploy $ENV"
-"$BIN/deploy.sh" "$ENV" "$HOST" "$TAG" "$REG"
-
+out=$("$BIN/deploy.sh" "$ENV" "$HOST_TEMPLATE" "$TAG" "$REG")
+echo "$out"
 fail=0
+if [[ "$(tail -1 <<<"$out")" == "HOST=$HOST" ]]; then echo "ok   first preview took slot 1"; else echo "FAIL expected HOST=$HOST" >&2; fail=1; fi
+
 check() { # check <path> <expected status> [body substring]
   local out code
   out=$(curl -s -H "Host: $HOST" -w '\n%{http_code}' "http://127.0.0.1:$PORT$1")
@@ -72,9 +75,16 @@ check / 200 '<div id="root">'
 body=$(curl -s -H 'Host: unknown.localhost' "http://127.0.0.1:$PORT/")
 if [[ "$body" == edited ]]; then echo "ok   edited Caddyfile is live"; else echo "FAIL Caddy still serving the old Caddyfile ($body)" >&2; fail=1; fi
 
-echo "== analytics event, then backup and restore"
-curl -s -o /dev/null -H "Host: $HOST" -H 'Content-Type: text/plain' -H 'User-Agent: Mozilla/5.0 test-local' \
-  --data '{"p":"/","r":"","q":""}' "http://127.0.0.1:$PORT/api/a/e"
+echo "== the visitor's IP reaches the API (two IPs, two visitor hashes)"
+# cloudflared hands Caddy the visitor's address in Cf-Connecting-Ip.
+for ip in 203.0.113.7 198.51.100.9; do
+  curl -s -o /dev/null -H "Host: $HOST" -H "Cf-Connecting-Ip: $ip" -H 'Content-Type: text/plain' \
+    -H 'User-Agent: Mozilla/5.0 test-local' --data '{"p":"/","r":"","q":""}' "http://127.0.0.1:$PORT/api/a/e"
+done
+visitors=$(docker exec "af-$ENV-db-1" psql -U app -d app -tAc 'select count(distinct visitor_hash) from analytics_events')
+if [[ "$visitors" == 2 ]]; then echo "ok   2 IPs counted as 2 visitors"; else echo "FAIL 2 IPs counted as $visitors visitor(s)" >&2; fail=1; fi
+
+echo "== backup and restore"
 "$BIN/backup.sh" "$ENV" > "$WORK/db.dump"
 test -s "$WORK/db.dump"
 docker run -d --name af-restore-check -e POSTGRES_PASSWORD=x -e POSTGRES_DB=app postgres:17-alpine >/dev/null
@@ -83,7 +93,7 @@ sleep 2
 docker exec -i af-restore-check pg_restore -U postgres -d app --no-owner --exit-on-error < "$WORK/db.dump"
 rows=$(docker exec af-restore-check psql -U postgres -d app -tAc 'select count(*) from analytics_events')
 echo "ok   restored dump has $rows analytics_events row(s)"
-[[ "$rows" -ge 1 ]] || { echo "FAIL expected the test event in the restored dump" >&2; fail=1; }
+[[ "$rows" -ge 2 ]] || { echo "FAIL expected both test events in the restored dump" >&2; fail=1; }
 
 echo "== teardown"
 "$BIN/teardown.sh" "$ENV"

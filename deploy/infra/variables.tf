@@ -9,11 +9,6 @@ variable "admin_emails" {
 }
 
 # From scredmgr (app-foundry/*), injected as TF_VAR_* by `scredmgr run`.
-variable "preview_dns_token" {
-  type      = string
-  sensitive = true
-}
-
 variable "r2_backup_access_key_id" {
   type      = string
   sensitive = true

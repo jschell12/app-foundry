@@ -57,7 +57,14 @@ resource "cloudflare_dns_record" "ssh" {
   comment = "${var.name}: SSH through Access (infralift)"
 }
 
-# Preview records are created and deleted by .github/workflows/preview.yml,
-# because they live exactly as long as a pull request. It uses
-# var.preview_dns_token (DNS edit on this zone only), minted outside tofu:
-# a token that can mint tokens is too dangerous to hand to apply.
+resource "cloudflare_dns_record" "preview" {
+  for_each = toset(local.preview_hosts)
+
+  zone_id = data.cloudflare_zone.this.zone_id
+  name    = each.value
+  type    = "CNAME"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.box.id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+  comment = "${var.name}: preview slot (infralift)"
+}
