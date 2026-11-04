@@ -46,6 +46,10 @@ module "app" {
   cloudflare_account_id = var.cloudflare_account_id
   admin_emails          = var.admin_emails
 
+  preview_dns_token           = var.preview_dns_token
+  r2_backup_access_key_id     = var.r2_backup_access_key_id
+  r2_backup_secret_access_key = var.r2_backup_secret_access_key
+
   name                  = local.settings.name
   zone_name             = local.settings.zone_name
   subdomain             = local.settings.subdomain

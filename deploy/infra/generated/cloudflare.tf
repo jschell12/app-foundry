@@ -58,22 +58,6 @@ resource "cloudflare_dns_record" "ssh" {
 }
 
 # Preview records are created and deleted by .github/workflows/preview.yml,
-# because they live exactly as long as a pull request. This token is the
-# narrowest grant that allows it: DNS edit on this one zone.
-data "cloudflare_account_api_token_permission_groups_list" "dns_write" {
-  account_id = var.cloudflare_account_id
-  name       = "DNS Write"
-}
-
-resource "cloudflare_account_token" "preview_dns" {
-  account_id = var.cloudflare_account_id
-  name       = "${var.name}-preview-dns"
-
-  policies = [{
-    effect            = "allow"
-    permission_groups = [{ id = data.cloudflare_account_api_token_permission_groups_list.dns_write.result[0].id }]
-    resources = jsonencode({
-      "com.cloudflare.api.account.zone.${data.cloudflare_zone.this.zone_id}" = "*"
-    })
-  }]
-}
+# because they live exactly as long as a pull request. It uses
+# var.preview_dns_token (DNS edit on this zone only), minted outside tofu:
+# a token that can mint tokens is too dangerous to hand to apply.

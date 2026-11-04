@@ -54,13 +54,26 @@ nothing until the infra is applied.
 Credentials are environment variables only; inject them with
 `scredmgr run`.
 
-1. **A Cloudflare token for apply.** The existing deploy tokens can read the
-   zone but not mint tokens (plan fails on the two permission-group lookups
-   with a 403). It needs, on the account: Account API Tokens Write, Cloudflare
-   Tunnel Edit, Access: Apps and Policies Edit, Access: Service Tokens Edit,
-   Workers R2 Storage Edit; and on the `infralift.dev` zone: DNS Edit, Zone Read.
-2. **A state passphrase.** Store it (e.g. `app-foundry/TF_VAR_state_passphrase`).
-   `tofu init` needs it too, not just plan. Lose it and the state cannot be read.
+1. **Credentials**, all in scredmgr under `app-foundry/` (minted 2026-11-04):
+
+   | Entry | Injected as | Scope |
+   |---|---|---|
+   | `CF_DEPLOY_TOKEN` | `CLOUDFLARE_API_TOKEN` | apply: Tunnel, Access apps/policies/service tokens, R2 buckets (account); DNS edit + zone read on `infralift.dev`. No token management. Expires 2026-12-04. |
+   | `CF_PREVIEW_DNS_TOKEN` | `TF_VAR_preview_dns_token` | DNS edit on `infralift.dev` only; tofu writes it to the repo for `preview.yml` |
+   | `R2_BACKUP_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` | `TF_VAR_r2_backup_*` | the backups bucket only |
+   | `R2_STATE_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | the tfstate bucket only |
+   | `TF_VAR_state_passphrase` | same | state encryption; `tofu init` needs it too. Lose it and the state cannot be read |
+
+   Plus the root `HCLOUD_TOKEN` and `gh auth token`.
+
+   tofu does not mint tokens. Cloudflare refuses token-management permission
+   to any token created by another token, and an apply token that could mint
+   anything would be the most dangerous credential on the account. So the
+   narrow tokens are minted once (the `cf-token-mint` skill) and passed in.
+
+2. **Prefix every command below** with
+   `scredmgr run --only HCLOUD_TOKEN -- scredmgr run --path app-foundry -- env GITHUB_TOKEN=$(gh auth token) GITHUB_OWNER=jschell12`.
+
 3. **Bootstrap the state bucket**, then move the bootstrap's own state into it
    (the steps are at the top of `bootstrap/main.tf`):
    ```sh
@@ -75,9 +88,6 @@ Credentials are environment variables only; inject them with
    cd deploy/infra
    cp backend.r2.hcl.example backend.r2.hcl          # fill in the account id
    cp terraform.tfvars.example terraform.tfvars      # account id, admin emails
-   export GITHUB_TOKEN=$(gh auth token) GITHUB_OWNER=jschell12
-   # + HCLOUD_TOKEN, CLOUDFLARE_API_TOKEN, AWS_ACCESS_KEY_ID/SECRET (R2),
-   #   TF_VAR_state_passphrase
    tofu init -backend-config=backend.r2.hcl
    tofu plan -out tfplan && tofu apply tfplan
    ```

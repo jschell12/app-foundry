@@ -22,23 +22,5 @@ resource "cloudflare_r2_bucket_lifecycle" "backups" {
   }]
 }
 
-# Read and write on this one bucket and nothing else. R2's S3 credentials
-# are derived from the token: the key id is the token id and the secret is
-# the SHA-256 of the token value.
-data "cloudflare_account_api_token_permission_groups_list" "r2_write" {
-  account_id = var.cloudflare_account_id
-  name       = "Workers R2 Storage Bucket Item Write"
-}
-
-resource "cloudflare_account_token" "backups" {
-  account_id = var.cloudflare_account_id
-  name       = "${var.name}-backups"
-
-  policies = [{
-    effect            = "allow"
-    permission_groups = [{ id = data.cloudflare_account_api_token_permission_groups_list.r2_write.result[0].id }]
-    resources = jsonencode({
-      "com.cloudflare.edge.r2.bucket.${var.cloudflare_account_id}_default_${cloudflare_r2_bucket.backups.name}" = "*"
-    })
-  }]
-}
+# The S3 credentials the backup workflow uses come in as variables, scoped
+# to this one bucket and minted outside tofu (see var.r2_backup_access_key_id).

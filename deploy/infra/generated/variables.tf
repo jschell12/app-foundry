@@ -66,3 +66,26 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+# Minted outside tofu. Cloudflare will not let a token created by another
+# token manage tokens, and an apply token that could mint anything is the
+# most dangerous credential on the account, so these narrow ones are made
+# once and passed in.
+
+variable "preview_dns_token" {
+  description = "Cloudflare token with DNS edit on the zone only; the preview workflow creates and deletes its records."
+  type        = string
+  sensitive   = true
+}
+
+variable "r2_backup_access_key_id" {
+  description = "R2 S3 key id (the token id) scoped to the backups bucket."
+  type        = string
+  sensitive   = true
+}
+
+variable "r2_backup_secret_access_key" {
+  description = "R2 S3 secret (SHA-256 of the token value) for the same token."
+  type        = string
+  sensitive   = true
+}

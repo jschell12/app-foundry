@@ -7,3 +7,19 @@ variable "cloudflare_account_id" {
 variable "admin_emails" {
   type = list(string)
 }
+
+# From scredmgr (app-foundry/*), injected as TF_VAR_* by `scredmgr run`.
+variable "preview_dns_token" {
+  type      = string
+  sensitive = true
+}
+
+variable "r2_backup_access_key_id" {
+  type      = string
+  sensitive = true
+}
+
+variable "r2_backup_secret_access_key" {
+  type      = string
+  sensitive = true
+}

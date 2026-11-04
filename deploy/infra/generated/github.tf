@@ -9,9 +9,9 @@ locals {
     DEPLOY_SSH_KEY          = tls_private_key.deploy.private_key_openssh
     CF_ACCESS_CLIENT_ID     = cloudflare_zero_trust_access_service_token.deploy.client_id
     CF_ACCESS_CLIENT_SECRET = cloudflare_zero_trust_access_service_token.deploy.client_secret
-    CF_PREVIEW_DNS_TOKEN    = cloudflare_account_token.preview_dns.value
-    R2_ACCESS_KEY_ID        = cloudflare_account_token.backups.id
-    R2_SECRET_ACCESS_KEY    = sha256(cloudflare_account_token.backups.value)
+    CF_PREVIEW_DNS_TOKEN    = var.preview_dns_token
+    R2_ACCESS_KEY_ID        = var.r2_backup_access_key_id
+    R2_SECRET_ACCESS_KEY    = var.r2_backup_secret_access_key
   }
 
   actions_variables = {
