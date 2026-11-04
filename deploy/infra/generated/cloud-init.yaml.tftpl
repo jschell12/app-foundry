@@ -40,6 +40,7 @@ runcmd:
   # Ubuntu 24.04 socket-activates sshd; the generator rereads ListenAddress.
   - systemctl daemon-reload
   - systemctl restart ssh.socket ssh.service
-  - curl -fsSL -o /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+  - curl -fsSL -o /tmp/cloudflared.deb '${cloudflared_url}'
+  - echo '${cloudflared_sha}  /tmp/cloudflared.deb' | sha256sum -c -
   - dpkg -i /tmp/cloudflared.deb
   - cloudflared service install ${tunnel_token}

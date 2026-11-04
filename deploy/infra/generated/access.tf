@@ -72,10 +72,7 @@ resource "cloudflare_zero_trust_access_application" "public" {
   name       = "${var.name} public"
   type       = "self_hosted"
 
-  destinations = [
-    { type = "public", uri = local.prod_host },
-    { type = "public", uri = "${local.preview_prefix}*.${var.zone_name}" },
-  ]
+  destinations = [for h in concat([local.prod_host], local.preview_hosts) : { type = "public", uri = h }]
 
   policies = [
     { id = cloudflare_zero_trust_access_policy.public.id, precedence = 1 },
