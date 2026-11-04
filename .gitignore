@@ -31,3 +31,5 @@ venv/
 *.tfplan
 terraform.tfvars
 backend.r2.hcl
+tfplan
+plan.log
