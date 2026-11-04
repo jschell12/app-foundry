@@ -23,3 +23,11 @@ venv/
 .idea/
 .vscode/
 *.swp
+
+# OpenTofu / Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+backend.r2.hcl

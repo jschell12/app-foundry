@@ -1,0 +1,13 @@
+# Deployed to /srv/app-foundry/Caddyfile by the workflows.
+# TLS ends at Cloudflare; cloudflared hands Caddy plain HTTP on localhost:80.
+{
+	auto_https off
+}
+
+# One file per environment, written by bin/deploy.sh.
+import /etc/caddy/sites/*.caddy
+
+# Anything the tunnel routes here that no environment claims.
+:80 {
+	respond 404
+}

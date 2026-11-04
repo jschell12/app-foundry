@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     app_name: str = "app-foundry-api"
     environment: str = "development"
 
+    # Path prefix a reverse proxy strips before requests reach the API (the
+    # deploy stack serves it at /api). Only affects generated URLs such as
+    # the docs page's openapi.json link.
+    root_path: str = ""
+
     database_url: str = (
         "postgresql+asyncpg://postgres:postgres@localhost:5432/app_foundry"
     )
