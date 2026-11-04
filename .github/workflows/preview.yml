@@ -57,13 +57,13 @@ jobs:
               | curl -fsS -X POST -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data @- "$api" >/dev/null
           fi
       - name: Ship box files
-        run: rsync -a --delete-after --exclude envs --exclude sites --exclude data deploy/box/ box:/srv/app-foundry/
+        run: ssh box "mkdir -p /srv/app-foundry/code/$PR_ENV" && rsync -a --delete deploy/box/ "box:/srv/app-foundry/code/$PR_ENV/"
       - name: Deploy
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "$GHCR_TOKEN" | ssh box "docker login ghcr.io -u ${{ github.actor }} --password-stdin" >/dev/null
-          ssh box "MAX_PREVIEWS=${{ vars.MAX_PREVIEWS }} /srv/app-foundry/bin/deploy.sh $PR_ENV $PR_HOST ${{ github.event.pull_request.head.sha }} ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          ssh box "MAX_PREVIEWS=${{ vars.MAX_PREVIEWS }} /srv/app-foundry/code/$PR_ENV/bin/deploy.sh $PR_ENV $PR_HOST ${{ github.event.pull_request.head.sha }} ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
       - name: Smoke test
         run: |
           for _ in $(seq 20); do
@@ -85,7 +85,8 @@ jobs:
           ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
           access-client-id: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           access-client-secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-      - run: ssh box "/srv/app-foundry/bin/teardown.sh $PR_ENV"
+      # main's teardown, not the PR's: closing a PR should not run code it changed.
+      - run: ssh box "/srv/app-foundry/code/prod/bin/teardown.sh $PR_ENV"
       - name: Remove DNS record
         env:
           CF_TOKEN: ${{ secrets.CF_PREVIEW_DNS_TOKEN }}

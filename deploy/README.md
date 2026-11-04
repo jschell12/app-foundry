@@ -14,6 +14,10 @@ deploy/
 │   ├── backends/     tfc.tf, the Terraform Cloud alternative
 │   └── overrides.tf  yours, never rewritten
 └── box/              what runs on the server: compose, Caddy, scripts
+
+On the server, each environment gets its own copy of `box/` under
+`/srv/app-foundry/code/<env>/`, so a PR's preview can never change the scripts
+production, the nightly backup or a teardown runs.
 ```
 
 ## What it builds
@@ -57,10 +61,14 @@ Credentials are environment variables only; inject them with
    Workers R2 Storage Edit; and on the `infralift.dev` zone: DNS Edit, Zone Read.
 2. **A state passphrase.** Store it (e.g. `app-foundry/TF_VAR_state_passphrase`).
    `tofu init` needs it too, not just plan. Lose it and the state cannot be read.
-3. **Bootstrap the state bucket**, then move the bootstrap's own state into it:
+3. **Bootstrap the state bucket**, then move the bootstrap's own state into it
+   (the steps are at the top of `bootstrap/main.tf`):
    ```sh
    cd deploy/bootstrap
    tofu init && tofu apply -var cloudflare_account_id=...
+   cp r2-backend.tf.example r2-backend.tf
+   tofu init -migrate-state -backend-config=../infra/backend.r2.hcl \
+     -backend-config=key=bootstrap/terraform.tfstate
    ```
 4. **Apply the stack**:
    ```sh

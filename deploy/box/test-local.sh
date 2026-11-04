@@ -15,7 +15,7 @@ REG=localhost/af-test
 
 # shellcheck disable=SC2329  # invoked by the EXIT trap
 cleanup() {
-  AF_ROOT="$WORK" "$WORK/bin/teardown.sh" "$ENV" >/dev/null 2>&1 || true
+  AF_ROOT="$WORK" "$WORK/code/$ENV/bin/teardown.sh" "$ENV" >/dev/null 2>&1 || true
   docker rm -f caddy af-restore-check >/dev/null 2>&1 || true
   rm -rf "$WORK"
 }
@@ -34,11 +34,13 @@ for spec in marketing:/ dashboard:/app/ admin:/admin/; do
     --build-arg APP="$app" --build-arg VITE_API_URL=/api --build-arg VITE_BASE="$base" "$REPO" >/dev/null
 done
 
-cp -R "$REPO/deploy/box/." "$WORK/"
+mkdir -p "$WORK/code/$ENV"
+cp -R "$REPO/deploy/box/." "$WORK/code/$ENV/"
+BIN="$WORK/code/$ENV/bin"
 export AF_ROOT="$WORK" AF_HTTP_PORT="$PORT" AF_SKIP_PULL=1
 
 echo "== deploy $ENV"
-"$WORK/bin/deploy.sh" "$ENV" "$HOST" "$TAG" "$REG"
+"$BIN/deploy.sh" "$ENV" "$HOST" "$TAG" "$REG"
 
 fail=0
 check() { # check <path> <expected status> [body substring]
@@ -62,10 +64,18 @@ check /api/analytics/summary 404
 code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: unknown.localhost' "http://127.0.0.1:$PORT/")
 if [[ "$code" == 404 ]]; then echo "ok   unknown host -> 404"; else echo "FAIL unknown host: $code" >&2; fail=1; fi
 
+echo "== Caddyfile edits take effect (directory mount, not a stale inode)"
+sed 's/respond 404/respond "edited" 404/' "$WORK/code/$ENV/Caddyfile" > "$WORK/caddy/Caddyfile.new"
+mv "$WORK/caddy/Caddyfile.new" "$WORK/caddy/Caddyfile"
+docker exec caddy caddy reload --config /etc/caddy/conf/Caddyfile --adapter caddyfile
+check / 200 '<div id="root">'
+body=$(curl -s -H 'Host: unknown.localhost' "http://127.0.0.1:$PORT/")
+if [[ "$body" == edited ]]; then echo "ok   edited Caddyfile is live"; else echo "FAIL Caddy still serving the old Caddyfile ($body)" >&2; fail=1; fi
+
 echo "== analytics event, then backup and restore"
 curl -s -o /dev/null -H "Host: $HOST" -H 'Content-Type: text/plain' -H 'User-Agent: Mozilla/5.0 test-local' \
   --data '{"p":"/","r":"","q":""}' "http://127.0.0.1:$PORT/api/a/e"
-"$WORK/bin/backup.sh" "$ENV" > "$WORK/db.dump"
+"$BIN/backup.sh" "$ENV" > "$WORK/db.dump"
 test -s "$WORK/db.dump"
 docker run -d --name af-restore-check -e POSTGRES_PASSWORD=x -e POSTGRES_DB=app postgres:17-alpine >/dev/null
 for _ in $(seq 30); do docker exec af-restore-check pg_isready -U postgres -d app >/dev/null 2>&1 && break; sleep 1; done
@@ -76,7 +86,7 @@ echo "ok   restored dump has $rows analytics_events row(s)"
 [[ "$rows" -ge 1 ]] || { echo "FAIL expected the test event in the restored dump" >&2; fail=1; }
 
 echo "== teardown"
-"$WORK/bin/teardown.sh" "$ENV"
+"$BIN/teardown.sh" "$ENV"
 if [[ -z "$(docker ps -aq --filter "label=com.docker.compose.project=af-$ENV")" ]]; then
   echo "ok   no af-$ENV containers left"
 else

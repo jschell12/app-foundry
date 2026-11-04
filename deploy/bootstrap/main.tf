@@ -1,12 +1,14 @@
-# Creates the R2 bucket that holds the main stack's state. Run once:
+# Creates the R2 bucket that holds the main stack's state. There is nowhere
+# to keep this module's own state until the bucket exists, so it starts local
+# and then moves into the bucket it made:
 #
-#   tofu init && tofu apply
-#   # then move this module's own state into the bucket it just made:
+#   tofu init && tofu apply -var cloudflare_account_id=...
+#   cp r2-backend.tf.example r2-backend.tf
 #   tofu init -migrate-state -backend-config=../infra/backend.r2.hcl \
-#     -backend-config='key=bootstrap/terraform.tfstate'
+#     -backend-config=key=bootstrap/terraform.tfstate
 #
-# Keeping the bootstrap state in the same bucket means nothing is left on a
-# laptop. Its state holds no secrets, so it is not encrypted.
+# Commit r2-backend.tf afterwards so the next run reads state from R2. Its
+# state holds no secrets, so it is not encrypted.
 
 terraform {
   required_version = ">= 1.6"

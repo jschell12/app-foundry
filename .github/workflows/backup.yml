@@ -42,7 +42,7 @@ jobs:
       - id: dump
         run: |
           key="prod/$(date -u +%Y-%m-%dT%H%MZ).dump"
-          ssh box /srv/app-foundry/bin/backup.sh prod > db.dump
+          ssh box /srv/app-foundry/code/prod/bin/backup.sh prod > db.dump
           test -s db.dump
           aws s3 cp db.dump "s3://${{ vars.R2_BUCKET }}/$key" --no-progress
           echo "key=$key" >> "$GITHUB_OUTPUT"

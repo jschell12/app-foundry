@@ -1,4 +1,4 @@
-# Deployed to /srv/app-foundry/Caddyfile by the workflows.
+# Copied to /srv/app-foundry/caddy/Caddyfile by production's deploy.sh.
 # TLS ends at Cloudflare; cloudflared hands Caddy plain HTTP on localhost:80.
 {
 	auto_https off
