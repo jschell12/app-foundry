@@ -55,3 +55,29 @@ resource "cloudflare_zero_trust_access_application" "admin" {
     { id = cloudflare_zero_trust_access_policy.admins.id, precedence = 1 },
   ]
 }
+
+# The zone may already have an Access app on *.<zone> (infralift.dev does),
+# which would put a login in front of the app. Access applies the most
+# specific match, so this opens production and previews to the public while
+# the admin app above still guards /admin and /api/analytics on production.
+resource "cloudflare_zero_trust_access_policy" "public" {
+  account_id = var.cloudflare_account_id
+  name       = "${var.name}-public"
+  decision   = "bypass"
+  include    = [{ everyone = {} }]
+}
+
+resource "cloudflare_zero_trust_access_application" "public" {
+  account_id = var.cloudflare_account_id
+  name       = "${var.name} public"
+  type       = "self_hosted"
+
+  destinations = [
+    { type = "public", uri = local.prod_host },
+    { type = "public", uri = "${local.preview_prefix}*.${var.zone_name}" },
+  ]
+
+  policies = [
+    { id = cloudflare_zero_trust_access_policy.public.id, precedence = 1 },
+  ]
+}
