@@ -1,0 +1,42 @@
+# Creates the R2 bucket that holds the main stack's state. There is nowhere
+# to keep this module's own state until the bucket exists, so it starts local
+# and then moves into the bucket it made:
+#
+#   tofu init && tofu apply -var cloudflare_account_id=...
+#   cp r2-backend.tf.example r2-backend.tf
+#   tofu init -migrate-state -backend-config=../infra/backend.r2.hcl \
+#     -backend-config=key=bootstrap/terraform.tfstate
+#
+# Commit r2-backend.tf afterwards so the next run reads state from R2. Its
+# state holds no secrets, so it is not encrypted.
+
+terraform {
+  required_version = ">= 1.6"
+
+  required_providers {
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5.28"
+    }
+  }
+}
+
+provider "cloudflare" {}
+
+variable "cloudflare_account_id" {
+  type = string
+}
+
+variable "bucket_name" {
+  type    = string
+  default = "app-foundry-demo-tfstate"
+}
+
+resource "cloudflare_r2_bucket" "state" {
+  account_id = var.cloudflare_account_id
+  name       = var.bucket_name
+}
+
+output "bucket" {
+  value = cloudflare_r2_bucket.state.name
+}

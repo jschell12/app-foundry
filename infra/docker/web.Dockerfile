@@ -2,7 +2,8 @@
 FROM node:22-alpine AS build
 ARG APP
 ARG VITE_API_URL=http://localhost:8000
-ENV VITE_API_URL=${VITE_API_URL}
+ARG VITE_BASE=/
+ENV VITE_API_URL=${VITE_API_URL} VITE_BASE=${VITE_BASE}
 
 RUN corepack enable
 WORKDIR /repo
